@@ -1,0 +1,52 @@
+<?php
+/**
+* Migrate product categories to brand taxonomy
+*
+* Usage:
+*   wp eval-file migrate-categories-to-brands.php
+*/
+ 
+// Get all published products
+$args = array(
+    'post_type'      => 'product',
+    'post_status'    => 'publish',
+    'posts_per_page' => -1,
+);
+ 
+$products = get_posts( $args );
+ 
+WP_CLI::log( 'Found ' . count($products) . ' published products.' );
+ 
+foreach ( $products as $product ) {
+    $product_id = $product->ID;
+ 
+    // Get product categories
+    $categories = wp_get_post_terms( $product_id, 'product_cat' );
+ 
+    $brand_terms_to_assign = array();
+ 
+    foreach ( $categories as $category ) {
+        // Get top-level parent
+        $parent = $category;
+        while ( $parent->parent != 0 ) {
+            $parent = get_term( $parent->parent, 'product_cat' );
+        }
+        // Use top-level category name as brand name
+        $brand_name = $parent->name;
+ 
+        // Make sure the brand term exists (create if missing)
+        $brand_term = term_exists( $brand_name, 'product_brand' );
+        if ( ! $brand_term ) {
+            $brand_term = wp_insert_term( $brand_name, 'product_brand' );
+            WP_CLI::log( "Created brand term: {$brand_name}" );
+        }
+ 
+        $brand_terms_to_assign[] = (int) $brand_term['term_id'];
+    }
+ 
+    if ( ! empty( $brand_terms_to_assign ) ) {
+        // Assign brands to product
+        wp_set_object_terms( $product_id, $brand_terms_to_assign, 'product_brand' );
+        WP_CLI::log( "Assigned brands to product ID {$product_id}" );
+    }
+}
