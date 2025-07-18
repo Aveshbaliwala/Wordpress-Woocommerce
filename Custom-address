@@ -1,0 +1,153 @@
+<?php 
+add_filter('woocommerce_checkout_fields', 'add_sarskild_adress_checkbox_to_checkout');
+function add_sarskild_adress_checkbox_to_checkout($fields) {
+    if (!is_user_logged_in()) {
+        return $fields;
+    }
+
+    $user = wp_get_current_user();
+
+    if (in_array('salesperson', (array) $user->roles)) {
+        $fields['billing']['sarskild_adress_checkbox'] = array(
+            'type'     => 'checkbox',
+            'label'    => __('Särskild adress', 'woocommerce'),
+            'required' => false,
+            'class'    => array('form-row-wide'),
+            'priority' => 150, // after month select
+        );
+		// Add conditional fields (initially hidden via JS)
+        $fields['billing']['sarskild_address'] = array(
+            'label'    => __('Särskild address', 'woocommerce'),
+            'required' => false,
+            'class'    => array('form-row-wide', 'sarskild-field'),
+            'priority' => 151,
+        );
+        $fields['billing']['sarskild_postcode'] = array(
+            'label'    => __('Särskild postnummer', 'woocommerce'),
+            'required' => false,
+            'class'    => array('form-row-first', 'sarskild-field'),
+            'priority' => 152,
+        );
+        $fields['billing']['sarskild_city'] = array(
+            'label'    => __('Särskild ort', 'woocommerce'),
+            'required' => false,
+            'class'    => array('form-row-last', 'sarskild-field'),
+            'priority' => 153,
+        );
+    }
+
+    return $fields;
+}
+
+add_action('woocommerce_after_checkout_form', 'sarskild_checkout_custom_js');
+function sarskild_checkout_custom_js() {
+    ?>
+    <script type="text/javascript">
+        jQuery(function($){
+            function toggleSarskildFields() {
+                if ($('#sarskild_adress_checkbox').is(':checked')) {
+                    $('.sarskild-field').closest('.form-row').show();
+                } else {
+                    $('.sarskild-field').closest('.form-row').hide();
+                }
+            }
+
+            toggleSarskildFields();
+
+            $('#sarskild_adress_checkbox').change(function(){
+                toggleSarskildFields();
+            });
+        });
+    </script>
+    <style>
+        .sarskild-field {
+            display: none;
+        }
+    </style>
+    <?php
+}
+
+add_action('woocommerce_checkout_update_order_meta', 'save_sarskild_adress_checkbox_to_order_meta');
+function save_sarskild_adress_checkbox_to_order_meta($order_id) {
+	$fields = [
+        'sarskild_address',
+        'sarskild_postcode',
+        'sarskild_city'
+    ];
+
+    foreach ($fields as $field) {
+        if (isset($_POST[$field])) {
+            update_post_meta($order_id, '_' . $field, sanitize_text_field($_POST[$field]));
+        }
+    }
+    if (isset($_POST['sarskild_adress_checkbox']) && (!empty($_POST['sarskild_address']) || !empty($_POST['sarskild_postcode']) || !empty($_POST['sarskild_city']))) {
+        $sarskild_adress_value = $_POST['sarskild_adress_checkbox'] ? 'yes' : 'no';
+        update_post_meta($order_id, '_sarskild_adress_checkbox', $sarskild_adress_value);
+    }
+
+}
+
+add_filter( 'woocommerce_register_shop_order_post_statuses', 'iwt_register_custom_order_status_season' );
+ 
+function iwt_register_custom_order_status_season( $order_statuses ) {
+     
+    //Status must start with "wc-"!
+    $order_statuses['wc-sasongsadress'] = array(
+       'label' => 'Säsongsadress',
+       'public' => '',
+       'exclude_from_search' => '',
+       'show_in_admin_all_list' => true,
+       'show_in_admin_status_list' => true,
+       'label_count' => _n_noop( 'Säsongsadress <span class="count">(%s)</span>', 'Säsongsadress <span class="count">(%s)</span>', 'woocommerce' ),
+    );
+
+    return $order_statuses;
+}
+ 
+add_filter( 'wc_order_statuses', 'show_custom_order_status_single_order_dropdown' );
+ 
+function show_custom_order_status_single_order_dropdown( $order_statuses ) {
+    $order_statuses['wc-sasongsadress'] = 'Säsongsadress';
+    return $order_statuses;
+}
+
+add_action( 'admin_footer', 'add_season_address_inside_order_data_container' );
+
+function add_season_address_inside_order_data_container() {
+    global $pagenow, $post;
+
+    // Only on order edit page
+    if ( $pagenow === 'post.php' && get_post_type( $post ) === 'shop_order' ) {
+
+        $order_id = $post->ID;
+        $sarskild_adress_checkbox = get_post_meta( $order_id, '_sarskild_adress_checkbox', true );
+
+        if ( $sarskild_adress_checkbox === 'yes' ) {
+            $sarskild_address   = esc_js( get_post_meta( $order_id, '_sarskild_address', true ) );
+            $sarskild_city      = esc_js( get_post_meta( $order_id, '_sarskild_city', true ) );
+            $sarskild_postcode  = esc_js( get_post_meta( $order_id, '_sarskild_postcode', true ) );
+            $billing_firstname  = esc_js( get_post_meta( $order_id, '_billing_first_name', true ) );
+            $billing_lastname  = esc_js( get_post_meta( $order_id, '_billing_last_name', true ) );
+            $full_address = $billing_firstname.' '.$billing_lastname.'<br>'.$sarskild_address . '<br>' . trim( $sarskild_postcode . ' ' . $sarskild_city );
+            ?>
+            <script>
+                jQuery(document).ready(function($) {
+                    const html = `
+                        <div class="season-address">
+                            <h3>Säsongsadress</h3>
+                            <p><?php echo $full_address; ?></p>
+                        </div>`;
+                    
+                    $('.order_data_column_container').append(html); // appends inside the container, after last child
+                });
+            </script>
+            <style>
+                .order_data_column_container{
+                    display: flex;
+                }
+            </style>
+            <?php
+        }
+    }
+}
+
