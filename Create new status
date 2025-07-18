@@ -1,0 +1,55 @@
+	add_filter( 'woocommerce_register_shop_order_post_statuses', 'custom_register_order_statuses' );
+
+	function custom_register_order_statuses( $order_statuses ) {
+	    
+	    $order_statuses['wc-statuslug'] = array(
+	        'label'                     => 'statusname',
+	        'public'                    => '',
+	        'exclude_from_search'       => '',
+	        'show_in_admin_all_list'    => true,
+	        'show_in_admin_status_list' => true,
+	        'label_count'               => _n_noop(
+	            'Säljare tillfrågad <span class="count">(%s)</span>',
+	            'Säljare tillfrågad <span class="count">(%s)</span>',
+	            'woocommerce'
+	        ),
+	    );
+
+	    $order_statuses['wc-statuslug'] = array(
+	        'label'                     => 'statusname',
+	        'public'                    => '',
+	        'exclude_from_search'       => '',
+	        'show_in_admin_all_list'    => true,
+	        'show_in_admin_status_list' => true,
+	        'label_count'               => _n_noop(
+	            'Skall levereras <span class="count">(%s)</span>',
+	            'Skall levereras <span class="count">(%s)</span>',
+	            'woocommerce'
+	        ),
+	    );
+
+	    $order_statuses['wc-statuslug'] = array(
+	        'label'                     => 'statusname',
+	        'public'                    => '',
+	        'exclude_from_search'       => '',
+	        'show_in_admin_all_list'    => true,
+	        'show_in_admin_status_list' => true,
+	        'label_count'               => _n_noop(
+	            'Kan inte <span class="count">(%s)</span>',
+	            'Kan inte <span class="count">(%s)</span>',
+	            'woocommerce'
+	        ),
+	    );
+
+	    return $order_statuses;
+	}
+
+	// 2. Make statuses selectable in order dropdown
+	add_filter( 'wc_order_statuses', 'custom_add_order_statuses_to_dropdown' );
+
+	function custom_add_order_statuses_to_dropdown( $order_statuses ) {
+	    $order_statuses['wc-statuslug'] = 'statusname';
+	    $order_statuses['wc-statuslug']   = 'statusname';
+	    $order_statuses['wc-statuslug']          = 'statusname';
+	    return $order_statuses;
+	}
