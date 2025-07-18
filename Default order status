@@ -1,0 +1,41 @@
+function set_default_order_status_for_salesperson($order) {
+    if (current_user_can('salesperson')) {
+        $current_status = $order->get_status();
+
+        $payment_method = trim($order->get_payment_method());
+
+        if ($payment_method === 'cod' || $payment_method === 'stripe' || $payment_method === 'redlight_swish-ecommerce') {
+            WC()->mailer()->emails['WC_Email_Customer_Processing_Order']->trigger($order->get_id());
+            $order->update_status('wc-bestallning-klar'); // already saved
+        }
+
+        if ($payment_method === 'redlight_swish-ecommerce') {
+            $iwt_order_status = $order->get_meta('iwt_order_status');
+            $iwt_sorder_paid_swish = $order->get_meta('_swish_payment_status');
+            if ($iwt_order_status === 'Beställning klar' && $iwt_sorder_paid_swish === 'paid') {
+                WC()->mailer()->emails['WC_Email_Customer_Processing_Order']->trigger($order->get_id());
+                $order->update_status('wc-bestallning-klar'); // already saved
+            }
+        }
+
+        $sarskild_adress = get_post_meta($order->get_id(), '_sarskild_adress_checkbox', true);
+        if ($sarskild_adress === 'yes') {
+            $order->update_status('wc-sasongsadress'); // already saved
+        }
+    }
+
+    // Save meta data if customer exists
+    if ($order) {
+        $customer = $order->get_user();
+        if ($customer) {
+            $iwt_suser_email = $customer->user_email;
+            $iwt_suser_name = $customer->display_name;
+
+            $order->update_meta_data('iwt_suser_email', $iwt_suser_email);
+            $order->update_meta_data('iwt_suser_name', $iwt_suser_name);
+
+            // Save meta data changes
+            $order->save();
+        }
+    }
+}
