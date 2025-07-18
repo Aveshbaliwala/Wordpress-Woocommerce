@@ -1,0 +1,17 @@
+// Enable cod payment for only sales person
+add_filter( 'woocommerce_available_payment_gateways', 'bbloomer_unset_gateway_by_category' );
+  
+function bbloomer_unset_gateway_by_category( $available_gateways ) {
+    if ( is_admin() ) return $available_gateways;
+    if ( ! is_checkout() ) return $available_gateways;
+    $unset = true;
+    if ( is_user_logged_in() && in_array( 'salesperson', wp_get_current_user()->roles ) ) {
+        $unset = false;
+    }
+    if ( is_user_logged_in() && in_array( 'administrator', wp_get_current_user()->roles ) ) {
+        $unset = false;
+    }
+    if ( $unset == true ) unset( $available_gateways['cod'] ); 
+
+    return $available_gateways;
+}
